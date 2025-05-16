@@ -34,7 +34,7 @@ class AlienInvasion:
         self._create_fleet()
         
          # Start Alien Invasion in an inactive state.
-        self.game_active = False
+        self.game_active = (False)
         
         self.play_button = Button(self, "Play")
         
@@ -147,8 +147,7 @@ class AlienInvasion:
         elif event.key == pygame.K_SPACE:
             self._fire_bullet()
         # Sets alternative key 'p' to press button.
-        elif event.key == pygame.K_p:
-            if not self.game_active:
+        elif event.key == pygame.K_p and not self.game_active:
                 self._start_game()                
                                 
     def _check_keyup_events(self, event):
