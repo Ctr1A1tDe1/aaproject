@@ -1,10 +1,13 @@
 import sys
 from time import sleep
+import json
+from pathlib import Path
 
 import pygame
 
 from settings import Settings
 from game_stats import GameStats
+from scoreboard import Scoreboard
 from button import Button
 from ship import Ship
 from bullet import Bullet
@@ -26,6 +29,7 @@ class AlienInvasion:
         pygame.display.set_caption("Alien Invasion")
         
         self.stats = GameStats(self)
+        self.sb = Scoreboard(self)
         
         self.ship = Ship(self)      
         self.bullets = pygame.sprite.Group()
@@ -74,8 +78,9 @@ class AlienInvasion:
         
     def _ship_hit(self):
         if self.stats.ships_left > 0:
-            #Ship hit -1 Lives.
+            #Ship hit -1 Lives, and update the scoreboard.
             self.stats.ships_left -= 1
+            self.sb.prep_ships()
             #Reset aliens and bullets.
             self.aliens.empty()
             self.bullets.empty()
@@ -121,6 +126,10 @@ class AlienInvasion:
          # Reset the game statistics.
             self.stats.reset_stats()
             self.stats.game_active = True
+            # Reset score
+            self.sb.prep_score()
+            self.sb.prep_level()
+            self.sb.prep_ships()
             # Gets rid of remaining aliens and bullets.          
             self.aliens.empty()
             self.bullets.empty()
@@ -134,8 +143,9 @@ class AlienInvasion:
         # Start a new game when the player clicks Play.
         button_clicked = self.play_button.rect.collidepoint(mouse_pos)
         if button_clicked and not self.stats.game_active:
+            # Reset the game and start again.
+            self.settings.initialize_dynamic_settings()
             self._start_game()
-            
             
     def _check_keydown_events(self, event):
         if event.key == pygame.K_RIGHT:
@@ -143,7 +153,7 @@ class AlienInvasion:
         elif event.key ==pygame.K_LEFT:
                     self.ship.moving_left = True
         elif event.key == pygame.K_q:
-            sys.exit()
+            self._close_game()
         elif event.key == pygame.K_SPACE:
             self._fire_bullet()
         # Sets alternative key 'p' to press button.
@@ -171,11 +181,22 @@ class AlienInvasion:
         self._check_bullet_alien_collision()
         
     def _check_bullet_alien_collision(self):
-        pygame.sprite.groupcollide(
+        collisions = pygame.sprite.groupcollide(
                 self.bullets, self.aliens, True, True)
         if not self.aliens:
             self.bullets.empty()
             self._create_fleet()
+            self.settings.increase_speed()
+            
+            # Increase level.
+            self.stats.level += 1
+            self.sb.prep_level()
+            
+        if collisions:
+            for aliens in collisions.values():
+                self.stats.score += self.settings.alien_points * len(aliens)
+            self.sb.prep_score()
+            self.sb.check_high_score()
                 
     def _update_aliens(self):
         self._check_fleet_edges()
@@ -199,6 +220,9 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        
+        # Draw score information.
+        self.sb.show_score()
                  
         # creates new fleet.
         if not self.aliens:
@@ -211,6 +235,16 @@ class AlienInvasion:
         
         #Make the most recently drawn screen visable.
         pygame.display.flip()
+        
+    def _close_game(self):
+        """Save high score and exit."""
+        saved_high_score = self.stats.get_saved_high_score()
+        if self.stats.high_score > saved_high_score:
+            path = Path('high_score.json')
+            contents = json.dumps(self.stats.high_score)
+            path.write_text(contents)
+        
+        sys.exit()
             
 if __name__ == '__main__':
     # Make a game instance, and run the game.
