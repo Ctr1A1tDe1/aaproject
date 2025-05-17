@@ -1,3 +1,5 @@
+# alien_invasion.py
+
 import sys
 from time import sleep
 import json
